@@ -1,9 +1,46 @@
-import type { NextPage } from 'next'
-import Head from 'next/head'
-import Image from 'next/image'
-import styles from '../styles/Home.module.css'
+import type { NextPage } from 'next';
+import Head from 'next/head';
+import Image from 'next/image';
+import styles from '../styles/Home.module.css';
+import { useState, useEffect } from 'react';
+import useDebounce from '../hooks/useDebounce';
+export interface Notice {
+  forename: string;
+  date_of_birth: string;
+  entity_id: string;
+  nationalities: string[];
+  name: string;
+  _links: Links;
+}
 
+export interface Links {
+  self: Images;
+  images: Images;
+  thumbnail: Images;
+}
+export interface Images {
+  href: string;
+}
 const Home: NextPage = () => {
+  const [notices, setNotices] = useState<Notice[]>([]);
+  const [search, setSearch] = useState<string | null>(null);
+  const [isLoading, setIsLoading] = useState(false);
+
+  const debouncedSearch = useDebounce(search, 1000);
+
+  useEffect(() => {
+    async function fetchData() {
+      setIsLoading(true);
+      const data = await fetch(
+        `https://ws-public.interpol.int/notices/v1/red?forename=${debouncedSearch}&resultPerPage=160`
+      ).then((response) => response.json());
+
+      setNotices(data?._embedded?.notices);
+      setIsLoading(false);
+    }
+    if (debouncedSearch) fetchData();
+  }, [debouncedSearch]);
+
   return (
     <div className={styles.container}>
       <Head>
@@ -13,60 +50,38 @@ const Home: NextPage = () => {
       </Head>
 
       <main className={styles.main}>
-        <h1 className={styles.title}>
-          Welcome to <a href="https://nextjs.org">Next.js!</a>
-        </h1>
+        <input
+          type="search"
+          placeholder="Search"
+          onChange={(e) => setSearch(e.target.value)}
+        />
+        <br />
 
-        <p className={styles.description}>
-          Get started by editing{' '}
-          <code className={styles.code}>pages/index.tsx</code>
-        </p>
+        {isLoading && <p>Loading...</p>}
 
-        <div className={styles.grid}>
-          <a href="https://nextjs.org/docs" className={styles.card}>
-            <h2>Documentation &rarr;</h2>
-            <p>Find in-depth information about Next.js features and API.</p>
-          </a>
-
-          <a href="https://nextjs.org/learn" className={styles.card}>
-            <h2>Learn &rarr;</h2>
-            <p>Learn about Next.js in an interactive course with quizzes!</p>
-          </a>
-
-          <a
-            href="https://github.com/vercel/next.js/tree/canary/examples"
-            className={styles.card}
-          >
-            <h2>Examples &rarr;</h2>
-            <p>Discover and deploy boilerplate example Next.js projects.</p>
-          </a>
-
-          <a
-            href="https://vercel.com/new?utm_source=create-next-app&utm_medium=default-template&utm_campaign=create-next-app"
-            className={styles.card}
-          >
-            <h2>Deploy &rarr;</h2>
-            <p>
-              Instantly deploy your Next.js site to a public URL with Vercel.
-            </p>
-          </a>
-        </div>
+        {/* {JSON.stringify(notices)} */}
+        {notices.map((notice, index) => {
+          return (
+            <div key={index} className={styles.notice}>
+              {notice._links?.thumbnail?.href && (
+                <Image
+                  src={notice._links?.thumbnail?.href}
+                  width="100px"
+                  height="100px"
+                  alt={notice.name}
+                />
+              )}
+              <div className={styles.notice_body}>
+                <p>
+                  {notice.forename} {notice.name}
+                </p>
+              </div>
+            </div>
+          );
+        })}
       </main>
-
-      <footer className={styles.footer}>
-        <a
-          href="https://vercel.com?utm_source=create-next-app&utm_medium=default-template&utm_campaign=create-next-app"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          Powered by{' '}
-          <span className={styles.logo}>
-            <Image src="/vercel.svg" alt="Vercel Logo" width={72} height={16} />
-          </span>
-        </a>
-      </footer>
     </div>
-  )
-}
+  );
+};
 
-export default Home
+export default Home;
